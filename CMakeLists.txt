@@ -5,7 +5,7 @@ project(LightGBM_Example)
 set(CMAKE_CXX_STANDARD 17)
 
 # 设置 LightGBM 安装目录
-set(LIGHTGBM_DIR ${CMAKE_CURRENT_SOURCE_DIR}/LightGBM/)
+set(LIGHTGBM_DIR ${CMAKE_CURRENT_SOURCE_DIR}/LightGBM)
 set(LIGHTGBM_LIB ${LIGHTGBM_DIR}/bin/lib_lightgbm.dll)
 
 
