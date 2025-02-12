@@ -20,7 +20,4 @@ add_executable(LightGBM_Demo lightGBM_demo.cpp)
 target_link_libraries(LightGBM_Demo PRIVATE ${LIGHTGBM_LIB})
 
 # 将 DLL 文件复制到可执行文件的输出目录
-add_custom_command(TARGET LightGBM_Demo POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        ${LIGHTGBM_LIB}
-        $<TARGET_FILE_DIR:LightGBM_Demo>)
+configure_file(${LIGHTGBM_LIB} ./ COPYONLY)
