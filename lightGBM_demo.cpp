@@ -103,7 +103,7 @@ std::vector<const Metric*> CovertMetricFormat(Config &config, Dataset* &dataset)
         Metric* metric = Metric::CreateMetric(metric_type, config);  // config is actually useless
         if (metric == nullptr) { continue; }
         metric->Init(dataset->metadata(), dataset->num_data());
-        metrics.push_back(metric);
+        metrics.emplace_back(metric);
     }
     return metrics;
 }
@@ -122,11 +122,11 @@ void ReadSampleToVector(const std::string& filename, std::vector<std::vector<dou
         double value, label;
         lineSS >> label;
         while (lineSS >> value) {
-            rowFeatures.push_back(value);
+            rowFeatures.emplace_back(value);
         }
         if (!rowFeatures.empty()) {
-            labels.push_back(label);
-            features.push_back(rowFeatures);
+            labels.emplace_back(label);
+            features.emplace_back(rowFeatures);
         }
     }
     file.close();
@@ -184,7 +184,7 @@ void LightGBMTrain()
 void LightGBMPredict()
 {
     Config config;
-    config.input_model = "../data/pretrainModel.txt";
+    config.input_model = "../output/lightgbm.txt";
     config.boosting = "gbdt";
 
     Boosting* boosting = Boosting::CreateBoosting(config.boosting, config.input_model.c_str());
@@ -213,10 +213,85 @@ void LightGBMPredict()
     }
 }
 
+bool isBlankLine(const std::string& line)
+{
+    return std::all_of(line.begin(), line.end(), [](const unsigned char c) {return std::isspace(c);});
+}
+
+std::string RemoveStrSpaces(std::string str)
+{
+    str.erase(std::remove_if(str.begin(), str.end(), ::isspace), str.end());
+    return str;
+}
+
+void LoadParameters(const std::string &configPath, Config &config)
+{
+    std::ifstream configFile(configPath);
+    if (!configFile) {
+        std::cerr << "cannot open config file " << configPath << std::endl;
+        return;
+    }
+    std::unordered_map<std::string, std::vector<std::string>> all_params;
+    std::unordered_map<std::string, std::string> params;
+    std::string line;
+    while (std::getline(configFile, line)) {
+        if (!line.empty() && !isBlankLine(line) && std::string::npos == line.find_first_of('#')) {
+            line = Common::Trim(line);
+            line = RemoveStrSpaces(line);
+            line = Common::RemoveQuotationSymbol(line);
+            Config::KV2Map(&all_params, line.c_str());
+        }
+    }
+    Config::KeepFirstValues(all_params, &params);   // de-duplicate params
+    ParameterAlias::KeyAliasTransform(&params);
+    config.Set(params);
+}
+
+void LoadConfigDemo()
+{
+    const std::string configPath = "../data/config.conf";
+    Config config;
+    LoadParameters(configPath, config);
+    std::cout << config.learning_rate << std::endl;
+    std::cout << config.num_iterations << std::endl;
+    std::cout << config.num_class << std::endl;
+    std::cout << config.bagging_freq << std::endl;
+    std::cout << config.max_bin << std::endl;
+    std::cout << config.num_leaves << std::endl;
+}
+
+void FeatureNameDemo()
+{
+    // load train dataset
+    const std::string train_file = "../data/train_with_feature_name.txt";
+    Config config;
+    config.label_column = "0";   // set label column, default 0
+    config.header = true;
+    DatasetLoader loader(config, nullptr, config.num_class, train_file.c_str());
+    Dataset* train_data = loader.LoadFromFile(train_file.c_str());
+    std::vector<std::string> feature_names = train_data->feature_names();
+    for (auto& feature_name : feature_names) {
+        std::cout << feature_name << std::endl;
+    }
+
+    const int num_features = train_data->num_features();
+    std::vector<std::string> my_feature_names;
+    for (int i = 0; i < num_features; ++i) {
+        my_feature_names.emplace_back("my_feature_" + std::to_string(i));
+    }
+    train_data->set_feature_names(my_feature_names);
+    feature_names = train_data->feature_names();
+    for (auto& feature_name : feature_names) {
+        std::cout << feature_name << std::endl;
+    }
+}
+
 int main()
 {
     // LoadDatasetFromVectorDemo();
-    LightGBMTrain();
+    // LightGBMTrain();
     // LightGBMPredict();
+    // LoadConfigDemo();
+    FeatureNameDemo();
     return 0;
 }
